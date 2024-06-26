@@ -10,7 +10,7 @@
 
 ## Google Cloud プロジェクトの設定、確認
 
-### **01. 対象の Google Cloud プロジェクトを設定**
+### **01. 対象の Google Cloud プロジェクト、 Region、Zone を設定**
 
 ハンズオンを行う Google Cloud プロジェクトのプロジェクト ID を環境変数に設定し、以降の手順で利用できるようにします。 **(右辺の [PROJECT_ID] を手動で置き換えてコマンドを実行します)**
 
@@ -19,6 +19,12 @@ export PROJECT_ID=[PROJECT_ID]
 ```
 
 `プロジェクト ID` は [ダッシュボード](https://console.cloud.google.com/home/dashboard) に進み、左上の **プロジェクト情報** から確認します。
+
+次に対象の Qwiklab 画面で指定された Region と Zone を環境変数に設定します。特に指定がなかった場合は us-central1 と us-central1-a を設定してください。**(右辺の [REGION] と [ZONE] を手動で置き換えてコマンドを実行します)**
+```bash
+export REGION=[REGION]
+export ZONE=[ZONE]
+```
 
 ### **02. プロジェクトの課金が有効化されていることを確認する**
 
@@ -106,7 +112,7 @@ gcloud services enable cloudbuild.googleapis.com container.googleapis.com artifa
 コンピュートリソースを作成するデフォルトのリージョン、ゾーンとして、東京 (asia-northeast1/asia-northeast1-c）を指定します。
 
 ```bash
-gcloud config set compute/region asia-northeast1 && gcloud config set compute/zone asia-northeast1-c
+gcloud config set compute/region ${REGION} && gcloud config set compute/zone ${ZONE}
 ```
 
 ## **参考: Cloud Shell の接続が途切れてしまったときは?**
@@ -134,7 +140,7 @@ export PROJECT_ID=[PROJECT_ID]
 ### **4. gcloud のデフォルト設定**
 
 ```bash
-gcloud config set project ${PROJECT_ID} && gcloud config set compute/region asia-northeast1 && gcloud config set compute/zone asia-northeast1-c
+gcloud config set project ${PROJECT_ID} && gcloud config set compute/region ${REGION} && gcloud config set compute/zone ${ZONE}
 ```
 
 
@@ -158,7 +164,7 @@ gcloud compute networks create ws-network \
 ```bash
 gcloud compute networks subnets create ws-subnet \
   --network ws-network \
-  --region asia-northeast1 \
+  --region ${REGION} \
   --range "192.168.1.0/24"
 ```
 
@@ -171,7 +177,7 @@ Cloud NAT を設定するため、Cloud Router を作成しておきます。
 gcloud compute routers create \
   ws-router \
   --network ws-network \
-  --region asia-northeast1
+  --region ${REGION}
 ```
 
 ### **Lab-00-04. Cloud NAT の作成**
@@ -183,7 +189,7 @@ gcloud compute routers nats create ws-nat \
   --router ws-router \
   --auto-allocate-nat-external-ips \
   --nat-all-subnet-ip-ranges \
-  --region asia-northeast1
+  --region ${REGION}
 ```
 
 ### **Lab-00-05. WS クラスタ の作成**
@@ -194,8 +200,8 @@ Cloud Workstations 用のクラスタを用意しておきます。
 ```bash
 gcloud workstations clusters create cluster-handson \
   --network "projects/$PROJECT_ID/global/networks/ws-network" \
-  --subnetwork "projects/$PROJECT_ID/regions/asia-northeast1/subnetworks/ws-subnet" \
-  --region asia-northeast1 \
+  --subnetwork "projects/$PROJECT_ID/regions/$REGION/subnetworks/ws-subnet" \
+  --region ${REGION} \
   --async
 ```
 
@@ -209,7 +215,7 @@ Cloud Workstations イメージを保管するためにレポジトリを作成�
 ```bash
 gcloud artifacts repositories create ws-repo \
   --repository-format docker \
-  --location asia-northeast1 \
+  --location ${REGION} \
   --description="Docker repository for Cloud workstations"
 ```
 
@@ -218,7 +224,7 @@ gcloud artifacts repositories create ws-repo \
 ```bash
 gcloud artifacts repositories create spring-app \
   --repository-format docker \
-  --location asia-northeast1 \
+  --location ${REGION} \
   --description="Docker repository for spring-app"
 ```
 
@@ -235,7 +241,7 @@ Cloud Build を利用して、Cloud Workstations コンテナイメージをビ�
 
 ```bash
 gcloud builds submit workstations/ \
-  --tag asia-northeast1-docker.pkg.dev/${PROJECT_ID}/ws-repo/codeoss-spring:v1.0.0
+  --tag ${REGION}-docker.pkg.dev/${PROJECT_ID}ws-repo/codeoss-spring:v1.0.0
 ```
 
 ### **Lab-02-03. Cloud Workstations イメージ Pull 用のサービスアカウントの設定**
@@ -251,7 +257,7 @@ gcloud iam service-accounts create codeoss-customized-sa \
 
 ```bash
 gcloud artifacts repositories add-iam-policy-binding ws-repo \
-  --location asia-northeast1 \
+  --location ${REGION} \
   --member serviceAccount:codeoss-customized-sa@${PROJECT_ID}.iam.gserviceaccount.com \
   --role=roles/artifactregistry.reader
 ```
@@ -263,14 +269,14 @@ gcloud artifacts repositories add-iam-policy-binding ws-repo \
 ```bash
 gcloud workstations configs create codeoss-spring \
   --machine-type e2-standard-4 \
-  --region asia-northeast1 \
+  --region ${REGION} \
   --cluster cluster-handson \
   --disable-public-ip-addresses \
   --shielded-integrity-monitoring \
   --shielded-secure-boot \
   --shielded-vtpm \
   --service-account codeoss-customized-sa@${PROJECT_ID}.iam.gserviceaccount.com \
-  --container-custom-image asia-northeast1-docker.pkg.dev/${PROJECT_ID}/ws-repo/codeoss-spring:v1.0.0
+  --container-custom-image ${REGION}-docker.pkg.dev/${PROJECT_ID}/ws-repo/codeoss-spring:v1.0.0
 ```
 
 ### **Lab-01-05. Workstations の作成**
@@ -279,7 +285,7 @@ gcloud workstations configs create codeoss-spring \
 
 ```bash
 gcloud workstations create ws-spring-dev \
-  --region asia-northeast1 \
+  --region ${REGION} \
   --cluster cluster-handson \
   --config codeoss-spring
 ```
